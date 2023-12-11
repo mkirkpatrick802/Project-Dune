@@ -2,17 +2,18 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Types/GridTileTypes.h"
+#include "Types/GridTileTypeStruct.h"
 #include "GridManager.generated.h"
 
 UCLASS()
 class PROJECT_DUNE_API AGridManager : public AActor
 {
 	GENERATED_BODY()
-	
+
 public:	
 
 	AGridManager();
-	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void Tick(float DeltaTime) override;
 
 protected:
@@ -25,16 +26,17 @@ public:
 
 private:
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Grid, meta = (AllowPrivateAccess = "true"))
-	int GridWidth;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Grid, meta = (AllowPrivateAccess = "true"))
+	int GridSideLength;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Grid, meta = (AllowPrivateAccess = "true"))
-	int GridLength;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Grid, meta = (AllowPrivateAccess = "true"))
+	int GridTileOffset;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Grid, meta = (AllowPrivateAccess = "true"))
-	TSubclassOf<class AGridTile> GridTile;
-
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Grid, meta = (AllowPrivateAccess = "true"))
 	TArray<AGridTile*> SpawnedTiles;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Grid, meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<AGridTile> BaseTile;
 
 public:
 

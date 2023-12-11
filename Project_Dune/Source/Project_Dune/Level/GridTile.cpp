@@ -2,15 +2,53 @@
 
 AGridTile::AGridTile()
 {
-	PrimaryActorTick.bCanEverTick = true;
-	TileScale = 1;
+	PrimaryActorTick.bCanEverTick = false;
 
+	TileActor = CreateDefaultSubobject<UChildActorComponent>(FName("Tile Actor"));
+	TileActor->SetupAttachment(RootComponent);
+	TileActor->Mobility = EComponentMobility::Movable;
+	SetRootComponent(TileActor);
+}
 
-	TileMesh = CreateDefaultSubobject<UStaticMeshComponent>(FName("Tile Mesh"));
-	TileMesh->SetupAttachment(RootComponent);
-	TileMesh->Mobility = EComponentMobility::Movable;
-	TileMesh->SetWorldScale3D(FVector(TileScale, TileScale, TileScale));
-	SetRootComponent(TileMesh);
+void AGridTile::PopulateMap()
+{
+	if (GridTileTypes)
+	{
+		TArray<FName> GridTileNames = GridTileTypes->GetRowNames();
+		for (auto RowName : GridTileNames)
+		{
+			FGridTileType GridTile = *GridTileTypes->FindRow<FGridTileType>(RowName, "");
+			TileTypeMaps.Add(GridTile.TileType, GridTile);
+		}
+	}
+}
+
+void AGridTile::SetChildActor()
+{
+	if (GridTileTypes)
+	{
+		const int MaxEnumValue = (int)EGridTileTypes::GTT_Max;
+
+		int RandomIndex = FMath::RandRange(0, MaxEnumValue - 1);
+		const TEnumAsByte RandomEnumValue(static_cast<EGridTileTypes>(RandomIndex));
+
+		TileActor->SetChildActorClass(TileTypeMaps.Find(RandomEnumValue.GetValue())->Tile);
+	}
+}
+
+FVector2D AGridTile::GetTileBounds()
+{
+	AActor* ChildActor = TileActor->GetChildActor();
+	if(ChildActor)
+	{
+		FVector Origin;
+		FVector Bounds;
+		ChildActor->GetActorBounds(true, Origin, Bounds);
+		UE_LOG(LogTemp, Warning, TEXT("%f, %f"), Bounds.X, Bounds.Y);
+		return FVector2D(Bounds.X * 2, Bounds.Y * 2);
+	}
+
+	return FVector2D::ZeroVector;
 }
 
 void AGridTile::BeginPlay()
@@ -21,8 +59,4 @@ void AGridTile::BeginPlay()
 void AGridTile::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
-	FTransform NewTransform;
-	NewTransform.SetLocation(GetActorLocation() + FVector(0, 0, 1));
-	SetActorTransform(NewTransform);
 }
