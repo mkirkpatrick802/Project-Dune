@@ -2,7 +2,7 @@
 
 AGridTile::AGridTile()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
 
 	TileActor = CreateDefaultSubobject<UChildActorComponent>(FName("Tile Actor"));
 	TileActor->SetupAttachment(RootComponent);
@@ -54,9 +54,72 @@ FVector2D AGridTile::GetTileBounds()
 void AGridTile::BeginPlay()
 {
 	Super::BeginPlay();
+
+	DefaultPosition = GetActorLocation();
+	TargetPosition = FVector::Zero();
+	IsLoaded = false;
+	IsLoading = false;
+	SetActorHiddenInGame(!IsLoaded);
 }
 
 void AGridTile::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if(TargetPosition == FVector::Zero()) return;
+	if(TargetPosition == DefaultPosition)
+	{
+		const FVector NewPosition = FMath::Lerp(GetActorTransform().GetLocation(), TargetPosition, .03f);
+		SetActorLocation(NewPosition);
+
+		const float DistanceSquared = FVector::DistSquared(GetActorLocation(), DefaultPosition);
+		const float ToleranceSquared = FMath::Square(10.f);
+		if (DistanceSquared <= ToleranceSquared)
+		{
+			IsLoaded = true;
+			IsLoading = false;
+		}
+	}
+	else
+	{
+		const FVector NewPosition = FMath::Lerp(GetActorTransform().GetLocation(), TargetPosition, .03f);
+		SetActorLocation(NewPosition);
+		IsLoaded = false;
+
+		const float ADistanceSquared = FVector::DistSquared(GetActorLocation(), TargetPosition);
+		const float AToleranceSquared = FMath::Square(50.f);
+		if (ADistanceSquared <= AToleranceSquared)
+		{
+			TargetPosition = FVector::Zero();
+			SetActorHiddenInGame(true);
+			IsLoading = false;
+		}
+	}
+}
+
+void AGridTile::LoadIn()
+{
+	if(IsLoaded) return;
+	IsLoading = true;
+
+	UE_LOG(LogTemp, Warning, TEXT("Loaded"));
+
+	TargetPosition = DefaultPosition;
+
+	const FVector NewPosition = FVector(DefaultPosition.X, DefaultPosition.Y, DefaultPosition.Z + 200);
+	SetActorLocation(NewPosition);
+
+
+	SetActorHiddenInGame(false);
+}
+
+void AGridTile::LoadOut()
+{
+	if (!IsLoaded) return;
+	IsLoading = true;
+
+	const FVector NewPosition = FVector(DefaultPosition.X, DefaultPosition.Y, DefaultPosition.Z - 200);
+	TargetPosition = NewPosition;
+
+	IsLoaded = false;
 }

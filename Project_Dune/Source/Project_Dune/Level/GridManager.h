@@ -22,6 +22,9 @@ protected:
 
 private:
 
+	void UpdateTiles();
+	bool IsPointInSphere(const FVector& Point, const FVector& SphereCenter, const float SphereRadius) const;
+
 public:
 
 private:
@@ -32,11 +35,17 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Grid, meta = (AllowPrivateAccess = "true"))
 	int GridTileOffset;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Grid, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Grid, meta = (AllowPrivateAccess = "true"))
 	TArray<AGridTile*> SpawnedTiles;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Grid, meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<AGridTile> BaseTile;
+
+	UPROPERTY(VisibleAnywhere)
+	TArray<AActor*> LevelLoaders;
+
+	UPROPERTY(VisibleAnywhere)
+	TArray<AGridTile*> ActiveTiles;
 
 public:
 

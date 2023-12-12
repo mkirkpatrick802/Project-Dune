@@ -6,6 +6,8 @@
 #include "Types/GridTileTypeStruct.h"
 #include "GridTile.generated.h"
 
+class UTimelineComponent;
+
 UCLASS()
 class PROJECT_DUNE_API AGridTile : public AActor
 {
@@ -18,6 +20,9 @@ public:
 
 	AGridTile();
 	virtual void Tick(float DeltaTime) override;
+
+	void LoadIn();
+	void LoadOut();
 
 	UFUNCTION(BlueprintCallable)
 	FVector2D GetTileBounds();
@@ -46,6 +51,14 @@ private:
 	TMap<EGridTileTypes, FGridTileType> TileTypeMaps;
 	EGridTileTypes TileType;
 
+	FVector DefaultPosition;
+	FVector TargetPosition;
+	bool IsLoaded;
+	bool IsLoading;
+
 public:
+
+	FORCEINLINE bool GetIsLoaded() const { return IsLoaded; }
+	FORCEINLINE bool GetIsLoading() const { return IsLoading; }
 
 };
