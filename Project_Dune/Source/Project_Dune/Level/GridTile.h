@@ -6,17 +6,18 @@
 #include "Types/GridTileTypeStruct.h"
 #include "GridTile.generated.h"
 
-class UTimelineComponent;
-
 UCLASS()
 class PROJECT_DUNE_API AGridTile : public AActor
 {
 	GENERATED_BODY()
 
-	UPROPERTY(VisibleAnywhere, Category = Tile)
-	UChildActorComponent* TileActor;
+	UPROPERTY(EditAnywhere, Category = Tile)
+	class UBoxComponent* BoxComponent;
 
-public:	
+	UPROPERTY(VisibleAnywhere, Category = Tile)
+	UChildActorComponent* TileActorComponent;
+
+public:
 
 	AGridTile();
 	virtual void Tick(float DeltaTime) override;
@@ -39,6 +40,15 @@ protected:
 
 private:
 
+	void SetChildActorHidden(bool IsHidden);
+	void SetChildActorLocation(const FVector& Location);
+
+	UFUNCTION()
+	void OnBoxBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+	UFUNCTION()
+	void OnBoxEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
 public:
 
 
@@ -51,6 +61,9 @@ private:
 	TMap<EGridTileTypes, FGridTileType> TileTypeMaps;
 	EGridTileTypes TileType;
 
+	UPROPERTY()
+	AActor* TileActor;
+
 	FVector DefaultPosition;
 	FVector TargetPosition;
 	bool IsLoaded;
@@ -60,5 +73,7 @@ public:
 
 	FORCEINLINE bool GetIsLoaded() const { return IsLoaded; }
 	FORCEINLINE bool GetIsLoading() const { return IsLoading; }
+
+	FVector GetBoxExtent() const;
 
 };

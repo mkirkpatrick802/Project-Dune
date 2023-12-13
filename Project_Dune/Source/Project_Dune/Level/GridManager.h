@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Types/GridTileTypes.h"
 #include "Types/GridTileTypeStruct.h"
 #include "GridManager.generated.h"
 
@@ -24,6 +23,7 @@ private:
 
 	void UpdateTiles();
 	bool IsPointInSphere(const FVector& Point, const FVector& SphereCenter, const float SphereRadius) const;
+	bool IsBoxInSphere(const FVector& SphereCenter, const float SphereRadius, const FVector& BoxCenter, const FVector& BoxExtent);
 
 public:
 

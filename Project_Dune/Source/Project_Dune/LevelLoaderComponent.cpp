@@ -27,6 +27,11 @@ void ULevelLoaderComponent::CreateDetectionSphere()
 	if (DetectionSphere)
 	{
 		DetectionSphere->InitSphereRadius(SphereRadius);
+		DetectionSphere->SetGenerateOverlapEvents(true);
+		DetectionSphere->SetCollisionObjectType(ECC_WorldDynamic);
+		DetectionSphere->SetCollisionResponseToAllChannels(ECR_Overlap);
+		//DetectionSphere.
+
 		DetectionSphere->AttachToComponent(AttachedActor->GetRootComponent(), FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 		DetectionSphere->RegisterComponent();
 

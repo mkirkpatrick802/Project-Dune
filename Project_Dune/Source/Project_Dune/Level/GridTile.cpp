@@ -1,13 +1,29 @@
 #include "GridTile.h"
 
+#include "Components/BoxComponent.h"
+
 AGridTile::AGridTile()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	TileActor = CreateDefaultSubobject<UChildActorComponent>(FName("Tile Actor"));
-	TileActor->SetupAttachment(RootComponent);
-	TileActor->Mobility = EComponentMobility::Movable;
-	SetRootComponent(TileActor);
+	BoxComponent = CreateDefaultSubobject<UBoxComponent>(FName("Box Collider"));
+	BoxComponent->SetupAttachment(RootComponent);
+	SetRootComponent(BoxComponent);
+
+	BoxComponent->Mobility = EComponentMobility::Stationary;
+	BoxComponent->SetCollisionObjectType(ECC_WorldStatic);
+	BoxComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	BoxComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+	BoxComponent->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Overlap);
+	BoxComponent->SetGenerateOverlapEvents(true);
+
+	BoxComponent->OnComponentBeginOverlap.AddDynamic(this, &AGridTile::OnBoxBeginOverlap);
+	BoxComponent->OnComponentEndOverlap.AddDynamic(this, &AGridTile::OnBoxEndOverlap);
+
+	TileActorComponent = CreateDefaultSubobject<UChildActorComponent>(FName("Tile Actor"));
+	TileActorComponent->SetupAttachment(RootComponent);
+
+	TileActorComponent->Mobility = EComponentMobility::Movable;
 }
 
 void AGridTile::PopulateMap()
@@ -32,18 +48,22 @@ void AGridTile::SetChildActor()
 		int RandomIndex = FMath::RandRange(0, MaxEnumValue - 1);
 		const TEnumAsByte RandomEnumValue(static_cast<EGridTileTypes>(RandomIndex));
 
-		TileActor->SetChildActorClass(TileTypeMaps.Find(RandomEnumValue.GetValue())->Tile);
+		TileActorComponent->SetChildActorClass(TileTypeMaps.Find(RandomEnumValue.GetValue())->Tile);
+		TileActor = TileActorComponent->GetChildActor();
+		if (!TileActor)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Tile Actor Not Set"));
+		}
 	}
 }
 
 FVector2D AGridTile::GetTileBounds()
 {
-	AActor* ChildActor = TileActor->GetChildActor();
-	if(ChildActor)
+	if(TileActor)
 	{
 		FVector Origin;
 		FVector Bounds;
-		ChildActor->GetActorBounds(true, Origin, Bounds);
+		TileActor->GetActorBounds(true, Origin, Bounds);
 		UE_LOG(LogTemp, Warning, TEXT("%f, %f"), Bounds.X, Bounds.Y);
 		return FVector2D(Bounds.X * 2, Bounds.Y * 2);
 	}
@@ -55,11 +75,32 @@ void AGridTile::BeginPlay()
 {
 	Super::BeginPlay();
 
+	TileActor = TileActorComponent->GetChildActor();
+	if (!TileActor)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Tile Actor Not Set"));
+	}
+
 	DefaultPosition = GetActorLocation();
 	TargetPosition = FVector::Zero();
 	IsLoaded = false;
 	IsLoading = false;
-	SetActorHiddenInGame(!IsLoaded);
+
+	SetChildActorHidden(true);
+}
+
+void AGridTile::OnBoxBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	if(IsLoading || !OtherActor->Tags.Contains(FName("Level Loader"))) return;
+
+	LoadIn();
+}
+
+void AGridTile::OnBoxEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	if (IsLoading || !OtherActor->Tags.Contains(FName("Level Loader"))) return;
+
+	LoadOut();
 }
 
 void AGridTile::Tick(float DeltaTime)
@@ -69,11 +110,11 @@ void AGridTile::Tick(float DeltaTime)
 	if(TargetPosition == FVector::Zero()) return;
 	if(TargetPosition == DefaultPosition)
 	{
-		const FVector NewPosition = FMath::Lerp(GetActorTransform().GetLocation(), TargetPosition, .03f);
-		SetActorLocation(NewPosition);
+		const FVector NewPosition = FMath::Lerp(TileActor->GetActorLocation(), TargetPosition, .02f);
+		SetChildActorLocation(NewPosition);
 
-		const float DistanceSquared = FVector::DistSquared(GetActorLocation(), DefaultPosition);
-		const float ToleranceSquared = FMath::Square(10.f);
+		const float DistanceSquared = FVector::DistSquared(TileActor->GetActorLocation(), DefaultPosition);
+		const float ToleranceSquared = FMath::Square(50.f);
 		if (DistanceSquared <= ToleranceSquared)
 		{
 			IsLoaded = true;
@@ -82,19 +123,28 @@ void AGridTile::Tick(float DeltaTime)
 	}
 	else
 	{
-		const FVector NewPosition = FMath::Lerp(GetActorTransform().GetLocation(), TargetPosition, .03f);
-		SetActorLocation(NewPosition);
-		IsLoaded = false;
+		const FVector NewPosition = FMath::Lerp(TileActor->GetActorLocation(), TargetPosition, .02f);
+		SetChildActorLocation(NewPosition);
 
-		const float ADistanceSquared = FVector::DistSquared(GetActorLocation(), TargetPosition);
-		const float AToleranceSquared = FMath::Square(50.f);
-		if (ADistanceSquared <= AToleranceSquared)
+		const float DistanceSquared = FVector::DistSquared(TileActor->GetActorLocation(), TargetPosition);
+		const float ToleranceSquared = FMath::Square(50.f);
+		if (DistanceSquared <= ToleranceSquared)
 		{
 			TargetPosition = FVector::Zero();
-			SetActorHiddenInGame(true);
+			SetChildActorHidden(true);
 			IsLoading = false;
 		}
 	}
+
+	TArray<AActor*> OverlappingActors;
+	int LevelLoaderCounter = 0;
+	BoxComponent->GetOverlappingActors(OverlappingActors);
+	for (const AActor* OverlappingActor : OverlappingActors)
+		if(OverlappingActor->Tags.Contains(FName("Level Loader")))
+			LevelLoaderCounter++;
+
+	if (LevelLoaderCounter == 0)
+		LoadOut();
 }
 
 void AGridTile::LoadIn()
@@ -102,15 +152,12 @@ void AGridTile::LoadIn()
 	if(IsLoaded) return;
 	IsLoading = true;
 
-	UE_LOG(LogTemp, Warning, TEXT("Loaded"));
-
 	TargetPosition = DefaultPosition;
 
 	const FVector NewPosition = FVector(DefaultPosition.X, DefaultPosition.Y, DefaultPosition.Z + 200);
-	SetActorLocation(NewPosition);
+	SetChildActorLocation(NewPosition);
 
-
-	SetActorHiddenInGame(false);
+	SetChildActorHidden(false);
 }
 
 void AGridTile::LoadOut()
@@ -122,4 +169,23 @@ void AGridTile::LoadOut()
 	TargetPosition = NewPosition;
 
 	IsLoaded = false;
+}
+
+void AGridTile::SetChildActorHidden(const bool IsHidden)
+{
+	if (!TileActor) return;
+
+	TileActor->SetActorHiddenInGame(IsHidden);
+}
+
+void AGridTile::SetChildActorLocation(const FVector& Location)
+{
+	if (!TileActor) return;
+
+	TileActor->SetActorLocation(Location);
+}
+
+FVector AGridTile::GetBoxExtent() const
+{
+	return BoxComponent->GetScaledBoxExtent();
 }
