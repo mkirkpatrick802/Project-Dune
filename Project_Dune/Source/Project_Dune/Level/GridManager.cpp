@@ -1,19 +1,38 @@
 #include "GridManager.h"
 
+#include <algorithm>
+#include <iterator>
+
 #include "EngineUtils.h"
 #include "GridTile.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Project_Dune/LevelLoaderComponent.h"
 
 AGridManager::AGridManager()
 {
 	PrimaryActorTick.bCanEverTick = true;
-	GridSideLength = 10;
+
+	GridHeight = 2;
+	GridWidth = 2;
 	GridTileOffset = 10;
+	GridTileScale = 1;
+	IsInstancedStaticMesh = true;
+
+	InstancedStaticMeshComponent = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("InstancedMesh"));
+	InstancedStaticMeshComponent->SetupAttachment(RootComponent);
+	SetRootComponent(InstancedStaticMeshComponent);
+
+	InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 }
 
 void AGridManager::BeginPlay()
 {
 	Super::BeginPlay();
+
+	for (int i = 0; i < InstancedStaticMeshComponent->GetInstanceCount(); i++)
+	{
+		InstancedStaticMeshComponent->SetCustomDataValue(i, 1, 0, true);
+	}
 }
 
 void AGridManager::Tick(float DeltaTime)
@@ -30,59 +49,57 @@ void AGridManager::Tick(float DeltaTime)
 			}
 		}
 
-		UpdateTiles();
 	}
+
+	UpdateTiles();
 }
 
 void AGridManager::UpdateTiles()
 {
 	ActiveTiles.Empty();
 
-	for (const auto Tile : SpawnedTiles)
+	//Load active tiles
+	for (const auto Loader : LevelLoaders)
 	{
-		for (const auto LevelLoader : LevelLoaders)
+		const ULevelLoaderComponent* LevelLoaderComponent = Loader->GetComponentByClass<ULevelLoaderComponent>();
+		if (!LevelLoaderComponent) break;
+
+		FVector Center = Loader->GetActorLocation();
+		TArray<int32> MeshIndices = InstancedStaticMeshComponent->GetInstancesOverlappingSphere(Center, LevelLoaderComponent->SphereRadius, true);
+		for (auto Index : MeshIndices)
 		{
-			if (const ULevelLoaderComponent* LevelLoaderComponent = LevelLoader->GetComponentByClass<ULevelLoaderComponent>())
-			{
-				if (IsBoxInSphere(LevelLoader->GetActorLocation(), LevelLoaderComponent->SphereRadius, Tile->GetActorLocation(), Tile->GetBoxExtent()))
+			ActiveTiles.AddUnique(Index);
+
+			bool IsSpawned = false;
+			for (const AGridTile* Tile : SpawnedTiles)
+				if(Tile->AssignedIndex == Index)
 				{
-					ActiveTiles.AddUnique(Tile);
+					IsSpawned = true;
+					break;
 				}
-			}
+
+			if(IsSpawned) continue;
+
+			FTransform CurrentInstanceTransform;
+			InstancedStaticMeshComponent->GetInstanceTransform(Index, CurrentInstanceTransform, true);
+
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			SpawnParams.Owner = this;
+
+			AGridTile* Tile = GetWorld()->SpawnActor<AGridTile>(TileActor, CurrentInstanceTransform, SpawnParams);
+			Tile->AssignedIndex = Index;
+
+			SpawnedTiles.AddUnique(Tile);
 		}
 	}
 
-	for (const auto Tile : ActiveTiles)
+	//Unload not active tiles
+	for (auto Tile : SpawnedTiles)
 	{
-		if(Tile->GetIsLoading()) continue;
+		if(ActiveTiles.Contains(Tile->AssignedIndex)) continue;
 
-		Tile->LoadIn();
+		SpawnedTiles.Remove(Tile);
+		Tile->Destroy();
 	}
-
-	for (const auto Tile : SpawnedTiles)
-	{
-		if (!ActiveTiles.Contains(Tile))
-		{
-			if (Tile->GetIsLoading()) continue;
-
-			Tile->LoadOut();
-		}
-	}
-}
-
-bool AGridManager::IsPointInSphere(const FVector& Point, const FVector& SphereCenter, const float SphereRadius) const
-{
-	const float SquaredDistance = FVector::DistSquared(Point, SphereCenter);
-	return SquaredDistance <= FMath::Square(SphereRadius);
-}
-
-bool AGridManager::IsBoxInSphere(const FVector& SphereCenter, const float SphereRadius, const FVector& BoxCenter, const FVector& BoxExtent)
-{
-	FVector ClosestPoint = FVector(
-		FMath::Clamp(SphereCenter.X, BoxCenter.X - BoxExtent.X, BoxCenter.X + BoxExtent.X),
-		FMath::Clamp(SphereCenter.Y, BoxCenter.Y - BoxExtent.Y, BoxCenter.Y + BoxExtent.Y),
-		FMath::Clamp(SphereCenter.Z, BoxCenter.Z - BoxExtent.Z, BoxCenter.Z + BoxExtent.Z)
-	);
-
-	return FVector::DistSquared(ClosestPoint, SphereCenter) <= FMath::Square(SphereRadius);
 }

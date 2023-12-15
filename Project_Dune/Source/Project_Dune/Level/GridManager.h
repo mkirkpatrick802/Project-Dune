@@ -2,13 +2,15 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Types/GridTileTypeStruct.h"
 #include "GridManager.generated.h"
 
 UCLASS()
 class PROJECT_DUNE_API AGridManager : public AActor
 {
 	GENERATED_BODY()
+
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = Grid, meta = (AllowPrivateAccess = "true"))
+	UInstancedStaticMeshComponent* InstancedStaticMeshComponent;
 
 public:	
 
@@ -22,30 +24,46 @@ protected:
 private:
 
 	void UpdateTiles();
-	bool IsPointInSphere(const FVector& Point, const FVector& SphereCenter, const float SphereRadius) const;
-	bool IsBoxInSphere(const FVector& SphereCenter, const float SphereRadius, const FVector& BoxCenter, const FVector& BoxExtent);
 
 public:
 
 private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Grid, meta = (AllowPrivateAccess = "true"))
-	int GridSideLength;
+	int GridWidth;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Grid, meta = (AllowPrivateAccess = "true"))
-	int GridTileOffset;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Grid, meta = (AllowPrivateAccess = "true"))
-	TArray<AGridTile*> SpawnedTiles;
+	int GridHeight;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Grid, meta = (AllowPrivateAccess = "true"))
-	TSubclassOf<AGridTile> BaseTile;
+	float GridTileOffset;
 
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Grid, meta = (AllowPrivateAccess = "true"))
+	float GridTileScale;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Grid, meta = (AllowPrivateAccess = "true"))
+	bool IsInstancedStaticMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Tile, meta = (AllowPrivateAccess = "true"))
+	UStaticMesh* TileMesh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Tile, meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<class AGridTile> TileActor;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Tile, meta = (AllowPrivateAccess = "true"))
+	float TileHeightStrength;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Tile, meta = (AllowPrivateAccess = "true"))
+	float TileHeightOffset;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	TArray<AActor*> LevelLoaders;
 
-	UPROPERTY(VisibleAnywhere)
-	TArray<AGridTile*> ActiveTiles;
+	UPROPERTY()
+	TArray<int> ActiveTiles;
+
+	UPROPERTY()
+	TArray<AGridTile*> SpawnedTiles;
 
 public:
 

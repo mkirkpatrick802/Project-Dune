@@ -12,9 +12,6 @@ class PROJECT_DUNE_API ULevelLoaderComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere)
-	class USphereComponent* DetectionSphere;
-
 public:	
 
 	ULevelLoaderComponent();
