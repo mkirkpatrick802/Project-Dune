@@ -18,4 +18,3 @@ void AGridTile::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 }
-
