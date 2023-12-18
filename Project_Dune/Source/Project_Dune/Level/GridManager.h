@@ -27,6 +27,9 @@ protected:
 
 	virtual void BeginPlay() override;
 
+	UFUNCTION(BlueprintCallable)
+	void SetNumCustomDataFloats(UInstancedStaticMeshComponent* Component, int NumDataFloats);
+
 private:
 
 	void UpdateTiles();
@@ -78,7 +81,13 @@ private:
 	TArray<int> ActiveTiles;
 
 	UPROPERTY()
+	TArray<int> ActiveDecor;
+
+	UPROPERTY()
 	TArray<AGridTile*> SpawnedTiles;
+
+	UPROPERTY()
+	TArray<class AGridDecor*> SpawnedDecor;
 
 public:
 

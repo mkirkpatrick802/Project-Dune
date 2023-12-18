@@ -12,6 +12,12 @@ AGridTile::AGridTile()
 void AGridTile::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if(BaseMaterial)
+	{
+		DynamicMaterialInstance = UMaterialInstanceDynamic::Create(BaseMaterial, this);
+		StaticMesh->SetMaterial(0, DynamicMaterialInstance);
+	}
 }
 
 void AGridTile::Tick(float DeltaTime)
