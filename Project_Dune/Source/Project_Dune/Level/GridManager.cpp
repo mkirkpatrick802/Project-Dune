@@ -1,8 +1,5 @@
 #include "GridManager.h"
 
-#include <algorithm>
-#include <iterator>
-
 #include "EngineUtils.h"
 #include "GridTile.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -16,22 +13,29 @@ AGridManager::AGridManager()
 	GridWidth = 2;
 	GridTileOffset = 10;
 	GridTileScale = 1;
-	IsInstancedStaticMesh = true;
+	DecorSpawnRate = .5f;
 
-	InstancedStaticMeshComponent = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("InstancedMesh"));
-	InstancedStaticMeshComponent->SetupAttachment(RootComponent);
-	SetRootComponent(InstancedStaticMeshComponent);
+	ActorRootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Actor Root"));
+	ActorRootComponent->SetupAttachment(RootComponent);
+	SetRootComponent(ActorRootComponent);
 
-	InstancedStaticMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	InstancedTileComponent = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("Grid Tiles"));
+	InstancedTileComponent->SetupAttachment(RootComponent);
+
+	InstancedTileComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	InstancedTileComponent->NumCustomDataFloats = 2;
+
+	TileDecorInstances = CreateDefaultSubobject<USceneComponent>(TEXT("Tile Decor"));
+	TileDecorInstances->SetupAttachment(RootComponent);
 }
 
 void AGridManager::BeginPlay()
 {
 	Super::BeginPlay();
 
-	for (int i = 0; i < InstancedStaticMeshComponent->GetInstanceCount(); i++)
+	for (int i = 0; i < InstancedTileComponent->GetInstanceCount(); i++)
 	{
-		InstancedStaticMeshComponent->SetCustomDataValue(i, 1, 0, true);
+		InstancedTileComponent->SetCustomDataValue(i, 1, 0, true);
 	}
 }
 
@@ -65,7 +69,7 @@ void AGridManager::UpdateTiles()
 		if (!LevelLoaderComponent) break;
 
 		FVector Center = Loader->GetActorLocation();
-		TArray<int32> MeshIndices = InstancedStaticMeshComponent->GetInstancesOverlappingSphere(Center, LevelLoaderComponent->SphereRadius, true);
+		TArray<int32> MeshIndices = InstancedTileComponent->GetInstancesOverlappingSphere(Center, LevelLoaderComponent->SphereRadius, true);
 		for (auto Index : MeshIndices)
 		{
 			ActiveTiles.AddUnique(Index);
@@ -81,7 +85,7 @@ void AGridManager::UpdateTiles()
 			if(IsSpawned) continue;
 
 			FTransform CurrentInstanceTransform;
-			InstancedStaticMeshComponent->GetInstanceTransform(Index, CurrentInstanceTransform, true);
+			InstancedTileComponent->GetInstanceTransform(Index, CurrentInstanceTransform, true);
 
 			FActorSpawnParameters SpawnParams;
 			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;

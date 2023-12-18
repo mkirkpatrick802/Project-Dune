@@ -9,8 +9,14 @@ class PROJECT_DUNE_API AGridManager : public AActor
 {
 	GENERATED_BODY()
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Grid, meta = (AllowPrivateAccess = "true"))
+	USceneComponent* ActorRootComponent;
+
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = Grid, meta = (AllowPrivateAccess = "true"))
-	UInstancedStaticMeshComponent* InstancedStaticMeshComponent;
+	UInstancedStaticMeshComponent* InstancedTileComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Tile, meta = (AllowPrivateAccess = "true"))
+	USceneComponent* TileDecorInstances;
 
 public:	
 
@@ -27,36 +33,45 @@ private:
 
 public:
 
-private:
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Grid, meta = (AllowPrivateAccess = "true"))
+	// Grid Settings
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Grid)
 	int GridWidth;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Grid, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Grid)
 	int GridHeight;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Grid, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Grid)
 	float GridTileOffset;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Grid, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Grid)
 	float GridTileScale;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Grid, meta = (AllowPrivateAccess = "true"))
-	bool IsInstancedStaticMesh;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Tile, meta = (AllowPrivateAccess = "true"))
+	// Tile Settings
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Tile)
 	UStaticMesh* TileMesh;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Tile, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Tile)
 	TSubclassOf<class AGridTile> TileActor;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Tile, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Tile)
 	float TileHeightStrength;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Tile, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Tile)
 	float TileHeightOffset;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	// Decoration Settings
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Decor)
+	float DecorSpawnRate;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Decor)
+	TArray<UStaticMesh*> DecorationMeshes;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Decor)
+	TArray<UInstancedStaticMeshComponent*> InstancesDecorComponents;
+
+private:
+
+	UPROPERTY()
 	TArray<AActor*> LevelLoaders;
 
 	UPROPERTY()
