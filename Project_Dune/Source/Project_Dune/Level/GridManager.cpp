@@ -4,8 +4,6 @@
 #include "GridDecor.h"
 #include "GridTile.h"
 #include "Components/InstancedStaticMeshComponent.h"
-#include "Materials/MaterialParameterCollection.h"
-#include "Materials/MaterialParameterCollectionInstance.h"
 #include "Project_Dune/LevelLoaderComponent.h"
 
 AGridManager::AGridManager()
@@ -30,6 +28,8 @@ AGridManager::AGridManager()
 
 	TileDecorInstances = CreateDefaultSubobject<USceneComponent>(TEXT("Tile Decor"));
 	TileDecorInstances->SetupAttachment(RootComponent);
+
+	OnLevelLoaderSpawned.AddUObject(this, &AGridManager::LevelLoaderSpawned);
 }
 
 void AGridManager::BeginPlay()
@@ -44,6 +44,7 @@ void AGridManager::BeginPlay()
 	for (int i = 0; i < InstancesDecorComponents.Num(); i++)
 	{
 		UInstancedStaticMeshComponent* Component = InstancesDecorComponents[i];
+		if(!Component) continue;
 		for (int j = 0; j < Component->GetInstanceCount(); j++)
 		{
 			Component->SetCustomDataValue(j, 0, 0, true);
@@ -56,35 +57,44 @@ void AGridManager::SetNumCustomDataFloats(UInstancedStaticMeshComponent* Compone
 	Component->NumCustomDataFloats = NumDataFloats;
 }
 
+void AGridManager::ShowDecorInstances()
+{
+	for (int i = 0; i < InstancesDecorComponents.Num(); i++)
+	{
+		UInstancedStaticMeshComponent* Component = InstancesDecorComponents[i];
+		if (!Component) continue;
+		for (int j = 0; j < Component->GetInstanceCount(); j++)
+		{
+			Component->SetCustomDataValue(j, 0, 1, true);
+		}
+	}
+}
+
 void AGridManager::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (LevelLoaders.IsEmpty())
+	if(TileActor && HasAuthority())
 	{
-		for (TActorIterator<AActor> ActorItr(GetWorld()); ActorItr; ++ActorItr)
-		{
-			if (ActorItr->Tags.Contains(FName("Level Loader")))
-			{
-				LevelLoaders.AddUnique(*ActorItr);
-			}
-		}
-
+		UpdateTiles();
 	}
+}
 
-	UpdateTiles();
+void AGridManager::LevelLoaderSpawned(ULevelLoaderComponent* LevelLoaderComponent)
+{
+	LevelLoaders.AddUnique(LevelLoaderComponent->AttachedActor);
+	UE_LOG(LogTemp, Warning, TEXT("Level Loader Added!"))
 }
 
 void AGridManager::UpdateTiles()
 {
 	ActiveTiles.Empty();
-	ActiveDecor.Empty();
 
 	//Load active tiles
 	for (const auto Loader : LevelLoaders)
 	{
 		const ULevelLoaderComponent* LevelLoaderComponent = Loader->GetComponentByClass<ULevelLoaderComponent>();
-		if (!LevelLoaderComponent) break;
+		if (!LevelLoaderComponent) continue;
 		FVector Center = Loader->GetActorLocation();
 
 		// Spawn Tiles
@@ -113,47 +123,27 @@ void AGridManager::UpdateTiles()
 
 			AGridTile* Tile = GetWorld()->SpawnActor<AGridTile>(TileActor, CurrentInstanceTransform, SpawnParams);
 			Tile->AssignedIndex = Index;
-
-			float RelativeHeight = CurrentInstanceTransform.GetLocation().Z / TileHeightStrength - TileHeightOffset;
-
-			if(Tile->DynamicMaterialInstance)
-				Tile->DynamicMaterialInstance->SetScalarParameterValue(FName("Elevation"), RelativeHeight);
-
-			UE_LOG(LogTemp, Warning, TEXT("%f"), RelativeHeight)
+			Tile->Height = CurrentInstanceTransform.GetLocation().Z / TileHeightStrength - TileHeightOffset;
+			Tile->UpdateMaterial();
 
 			SpawnedTiles.AddUnique(Tile);
 		}
 
 		// Spawn Decor
-		for (UInstancedStaticMeshComponent* DecorInstanceComponents : InstancesDecorComponents)
+		for (UInstancedStaticMeshComponent* DecorInstanceComponent : InstancesDecorComponents)
 		{
-			TArray<int32> DecorIndices = DecorInstanceComponents->GetInstancesOverlappingSphere(Center, LevelLoaderComponent->SphereRadius, true);
-			for (int32 DecorIndex : DecorIndices)
+			if (!DecorInstanceComponent) continue;
+			for (int32 InstanceIndex = 0; InstanceIndex < DecorInstanceComponent->GetInstanceCount(); InstanceIndex++)
 			{
-				ActiveDecor.AddUnique(DecorIndex);
-
-				bool IsSpawned = false;
-				for (const AGridDecor* Decor : SpawnedDecor)
-					if(Decor->AssignedIndex == DecorIndex)
+				FTransform InstanceTransform;
+				if (DecorInstanceComponent->GetInstanceTransform(InstanceIndex, InstanceTransform, true))
+				{
+					FVector InstanceLocation = InstanceTransform.GetLocation();
+					if((InstanceLocation - Center).Size() <= LevelLoaderComponent->SphereRadius)
 					{
-						IsSpawned = true;
-						break;
+						DecorInstanceComponent->SetCustomDataValue(InstanceIndex, 0, 1, true);
 					}
-
-				if (IsSpawned) continue;
-
-				FTransform CurrentInstanceTransform;
-				DecorInstanceComponents->GetInstanceTransform(DecorIndex, CurrentInstanceTransform, true);
-
-				FActorSpawnParameters SpawnParams;
-				SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-				SpawnParams.Owner = this;
-
-				AGridDecor* Decor = GetWorld()->SpawnActor<AGridDecor>(AGridDecor::StaticClass(), CurrentInstanceTransform, SpawnParams);
-				Decor->AssignedIndex = DecorIndex;
-				Decor->StaticMesh->SetStaticMesh(DecorInstanceComponents->GetStaticMesh());
-
-				SpawnedDecor.AddUnique(Decor);
+				}
 			}
 		}
 	}
@@ -166,15 +156,5 @@ void AGridManager::UpdateTiles()
 
 		SpawnedTiles.Remove(Tile);
 		Tile->Destroy();
-	}
-
-	//Unload not active decor
-	for (int i = 0; i < SpawnedDecor.Num(); i++)
-	{
-		AGridDecor* Decor = SpawnedDecor[i];
-		if(ActiveDecor.Contains(Decor->AssignedIndex)) continue;
-
-		SpawnedDecor.Remove(Decor);
-		Decor->Destroy();
 	}
 }

@@ -23,8 +23,6 @@ protected:
 
 private:
 
-	void CreateDetectionSphere();
-
 public:
 
 	UPROPERTY(EditAnywhere, Category = LevelLoading)
@@ -32,6 +30,7 @@ public:
 
 	UPROPERTY()
 	AActor* AttachedActor;
+
 private:
 
 public:

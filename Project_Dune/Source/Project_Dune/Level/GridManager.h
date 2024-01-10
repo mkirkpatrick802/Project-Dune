@@ -4,6 +4,8 @@
 #include "GameFramework/Actor.h"
 #include "GridManager.generated.h"
 
+DECLARE_EVENT_OneParam(AGridManager, FLevelLoaderSpawned, class ULevelLoaderComponent*);
+
 UCLASS()
 class PROJECT_DUNE_API AGridManager : public AActor
 {
@@ -30,11 +32,18 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void SetNumCustomDataFloats(UInstancedStaticMeshComponent* Component, int NumDataFloats);
 
+	UFUNCTION(BlueprintCallable)
+	void ShowDecorInstances();
+
 private:
 
+	UFUNCTION()
+	void LevelLoaderSpawned(ULevelLoaderComponent* LevelLoaderComponent);
 	void UpdateTiles();
 
 public:
+
+	FLevelLoaderSpawned OnLevelLoaderSpawned;
 
 	// Grid Settings
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Grid)
@@ -81,13 +90,7 @@ private:
 	TArray<int> ActiveTiles;
 
 	UPROPERTY()
-	TArray<int> ActiveDecor;
-
-	UPROPERTY()
 	TArray<AGridTile*> SpawnedTiles;
-
-	UPROPERTY()
-	TArray<class AGridDecor*> SpawnedDecor;
 
 public:
 
